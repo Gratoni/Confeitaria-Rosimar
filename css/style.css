@@ -1,0 +1,311 @@
+:root {
+    --bg: #fff8f2;
+    --accent: #ff6f61;
+    --accent-dark: #e45648;
+    --muted: #6b6b6b;
+    --card: #ffffff;
+    --gold: #d9b676;
+    --radius: 12px;
+    --maxw: 1100px;
+    --shadow: 0 10px 30px rgba(34, 20, 10, 0.06);
+    --gap: 18px;
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: var(--bg);
+    color: #222;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+}
+
+.wrap {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 20px
+}
+
+.site-header {
+    background: linear-gradient(90deg, var(--accent), #ff967c);
+    color: #fff;
+    padding: 12px 0;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06)
+}
+
+.site-header .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit
+}
+
+.logo-img {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column
+}
+
+.brand-name {
+    font-weight: 700;
+    font-size: 18px
+}
+
+.tagline {
+    font-size: 12px;
+    opacity: 0.9
+}
+
+.main-nav a {
+    color: #fff;
+    text-decoration: none;
+    margin-left: 18px;
+    font-weight: 600
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    border: none;
+    cursor: pointer
+}
+
+.btn:hover {
+    opacity: 0.95
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.14);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 10px
+}
+
+.hero {
+    background-image: url('/confeitaria_rosimar/assets/hero-background/hero-background.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 450px;
+    margin: 20px 0;
+    border-radius: var(--radius);
+}
+
+.hero-left h1 {
+    font-size: 36px;
+    margin: 0 0 8px;
+    color: #3a241f
+}
+
+.lead {
+    color: var(--muted);
+    margin-bottom: 12px
+}
+
+.cardapio {
+    margin: 14px 0
+}
+
+.cardapio h2 {
+    margin-bottom: 6px
+}
+
+.bolos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--gap)
+}
+
+.bolo-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform .22s, box-shadow .22s;
+    box-shadow: 0 10px 30px rgba(34, 20, 10, 0.06), 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.bolo-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 18px 40px rgba(34, 20, 10, 0.08), 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.bolo-card .thumb {
+    height: 160px;
+    overflow: hidden;
+    border-radius: 10px;
+    background-color: #f1f1f1;
+}
+
+.bolo-card .thumb img {
+    width: 100%;
+    object-fit: cover;
+    height: 100%;
+}
+
+.info h3 {
+    margin: 0;
+    font-size: 16px
+}
+
+.desc {
+    color: var(--muted);
+    font-size: 14px
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px
+}
+
+.price {
+    font-weight: 700;
+    color: var(--accent-dark)
+}
+
+.mini-cart {
+    position: fixed;
+    right: 18px;
+    top: 120px;
+    width: 260px;
+    background: var(--card);
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08)
+}
+
+.mini-cart h4 {
+    margin: 0 0 8px
+}
+
+.mini-item {
+    font-size: 13px
+}
+
+.mini-cart-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px
+}
+
+.checkout,
+.confirmation {
+    padding: 18px 0
+}
+
+.form {
+    background: var(--card);
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 12px
+}
+
+.form label {
+    display: block;
+    font-size: 14px;
+    color: #333
+}
+
+.form input[type="text"],
+.form input[type="tel"],
+.form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-top: 6px
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center
+}
+
+.cart-preview {
+    background: #faf4ee;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #fff3f0
+}
+
+.preview-item {
+    padding: 6px 0;
+    border-bottom: 1px dashed #f1e0dc
+}
+
+.alert {
+    background: #ffe9e6;
+    border: 1px solid #ffd2ca;
+    padding: 12px;
+    border-radius: 8px;
+    color: #6b2b21
+}
+
+.site-footer {
+    background: #fff;
+    padding: 20px 0;
+    border-top: 1px solid #f1e7df;
+    margin-top: 36px
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: 1fr 200px 1fr;
+    gap: 16px
+}
+
+.footer-about h4 {
+    margin: 0
+}
+
+@media (max-width:900px) {
+
+    .mini-cart {
+        display: none
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr
+    }
+}
+
+.hero .hero-left {
+    background-color: rgba(255, 248, 242, 0.85);
+    padding: 24px;
+    border-radius: 12px;
+}
