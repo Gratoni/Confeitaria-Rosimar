@@ -68,49 +68,49 @@ $bolos = $result->fetch_all(MYSQLI_ASSOC);
   const CARRINHO_URL = 'carrinho.php';
 
   function showToast(message) {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.innerHTML = `<span>✓</span> ${message}`;
-      container.appendChild(toast);
-      setTimeout(() => {
-          toast.remove();
-      }, 3500);
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<span>✓</span> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.remove();
+    }, 3500);
   }
 
   async function atualizarCarrinho() {
     try {
-        const res = await fetch(CARRINHO_URL + '?acao=listar');
-        const data = await res.json();
-        const el = document.getElementById('mini-cart-items');
-        const miniCart = document.getElementById('mini-cart');
-        const badge = document.getElementById('cart-count');
+      const res = await fetch(CARRINHO_URL + '?acao=listar');
+      const data = await res.json();
+      const el = document.getElementById('mini-cart-items');
+      const miniCart = document.getElementById('mini-cart');
+      const badge = document.getElementById('cart-count');
 
-        let count = 0;
+      let count = 0;
 
-        if (!data || !Object.keys(data).length) {
-          el.innerHTML = '<small>Seu carrinho está vazio.</small>';
-          miniCart.classList.remove('active');
-          if(badge) badge.style.display = 'none';
-          return;
-        }
+      if (!data || !Object.keys(data).length) {
+        el.innerHTML = '<small>Seu carrinho está vazio.</small>';
+        miniCart.classList.remove('active');
+        if (badge) badge.style.display = 'none';
+        return;
+      }
 
-        let html = '';
-        Object.values(data).forEach(i => {
-            count += i.qtd;
-            html += `<div class="mini-item"><span>${i.nome}</span> <span>x${i.qtd}</span></div>`;
-        });
+      let html = '';
+      Object.values(data).forEach(i => {
+        count += i.qtd;
+        html += `<div class="mini-item"><span>${i.nome}</span> <span>x${i.qtd}</span></div>`;
+      });
 
-        el.innerHTML = html;
-        if(badge) {
-            badge.innerText = count;
-            badge.style.display = 'block';
-        }
+      el.innerHTML = html;
+      if (badge) {
+        badge.innerText = count;
+        badge.style.display = 'block';
+      }
 
-        // Show mini cart if it has items (optional, maybe only on hover or add)
-        // miniCart.classList.add('active');
+      // Show mini cart if it has items (optional, maybe only on hover or add)
+      // miniCart.classList.add('active');
     } catch (e) {
-        console.error("Erro ao atualizar carrinho", e);
+      console.error("Erro ao atualizar carrinho", e);
     }
   }
 
@@ -130,26 +130,26 @@ $bolos = $result->fetch_all(MYSQLI_ASSOC);
       formData.append('preco', btn.dataset.preco);
 
       try {
-          const res = await fetch(CARRINHO_URL, {
-            method: 'POST',
-            body: formData
-          });
+        const res = await fetch(CARRINHO_URL, {
+          method: 'POST',
+          body: formData
+        });
 
-          const data = await res.json();
-          if (data.ok) {
-              showToast(`${btn.dataset.nome} adicionado ao carrinho!`);
-              document.getElementById('mini-cart').classList.add('active');
-              // Auto hide mini cart after 3 seconds if user doesn't hover
-              setTimeout(() => {
-                  // logic to hide if not hovering could go here
-              }, 3000);
-          }
+        const data = await res.json();
+        if (data.ok) {
+          showToast(`${btn.dataset.nome} adicionado ao carrinho!`);
+          document.getElementById('mini-cart').classList.add('active');
+          // Auto hide mini cart after 3 seconds if user doesn't hover
+          setTimeout(() => {
+            // logic to hide if not hovering could go here
+          }, 3000);
+        }
       } catch (err) {
-          console.error(err);
+        console.error(err);
       } finally {
-          btn.textContent = originalText;
-          btn.disabled = false;
-          atualizarCarrinho();
+        btn.textContent = originalText;
+        btn.disabled = false;
+        atualizarCarrinho();
       }
     }
   });
@@ -161,12 +161,12 @@ $bolos = $result->fetch_all(MYSQLI_ASSOC);
 
   // Toggle mini cart on cart icon click (mobile mostly)
   const cartLink = document.querySelector('.cart-link');
-  if(cartLink) {
-      cartLink.addEventListener('click', (e) => {
-          if(window.innerWidth > 900) return; // Allow normal navigation on desktop if desired, or toggle
-          e.preventDefault();
-          document.getElementById('mini-cart').classList.toggle('active');
-      });
+  if (cartLink) {
+    cartLink.addEventListener('click', (e) => {
+      if (window.innerWidth > 900) return; // Allow normal navigation on desktop if desired, or toggle
+      e.preventDefault();
+      document.getElementById('mini-cart').classList.toggle('active');
+    });
   }
 
   atualizarCarrinho();

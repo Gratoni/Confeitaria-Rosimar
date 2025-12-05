@@ -39,22 +39,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $carrinho) {
   // Verifica tabelas antes de tentar inserir
   $checkTable = $conn->query("SHOW TABLES LIKE 'pedidos'");
   if ($checkTable->num_rows > 0) {
-      $stmt = $conn->prepare("INSERT INTO pedidos (nome_cliente, telefone, observacoes) VALUES (?, ?, ?)");
-      if ($stmt) {
-          $stmt->bind_param("sss", $nome, $telefone, $obs);
-          $stmt->execute();
-          $pedido_id = $stmt->insert_id;
-          $stmt->close();
+    $stmt = $conn->prepare("INSERT INTO pedidos (nome_cliente, telefone, observacoes) VALUES (?, ?, ?)");
+    if ($stmt) {
+      $stmt->bind_param("sss", $nome, $telefone, $obs);
+      $stmt->execute();
+      $pedido_id = $stmt->insert_id;
+      $stmt->close();
 
-          $stmtItem = $conn->prepare("INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)");
-          if ($stmtItem) {
-              foreach ($carrinho as $id => $item) {
-                $stmtItem->bind_param("iiid", $pedido_id, $id, $item['qtd'], $item['preco']);
-                $stmtItem->execute();
-              }
-              $stmtItem->close();
-          }
+      $stmtItem = $conn->prepare("INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)");
+      if ($stmtItem) {
+        foreach ($carrinho as $id => $item) {
+          $stmtItem->bind_param("iiid", $pedido_id, $id, $item['qtd'], $item['preco']);
+          $stmtItem->execute();
+        }
+        $stmtItem->close();
       }
+    }
   }
 
   $_SESSION['carrinho'] = [];
@@ -76,12 +76,12 @@ if (empty($carrinho)) {
 
   <?php if (!empty($error)): ?>
     <div class="empty-state">
-        <p><?= htmlspecialchars($error) ?></p>
-        <a href="index.php" class="btn">Voltar ao Cardápio</a>
+      <p><?= htmlspecialchars($error) ?></p>
+      <a href="index.php" class="btn">Voltar ao Cardápio</a>
     </div>
   <?php else: ?>
 
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;">
       <form id="form-order" method="post" class="form">
         <h3>Seus dados</h3>
         <label>Nome completo
@@ -109,55 +109,60 @@ if (empty($carrinho)) {
             $subtotal = $item['preco'] * $item['qtd'];
             $total += $subtotal;
           ?>
-              <div class="preview-item">
-                <div style="display:flex; justify-content:space-between;">
-                    <span><strong><?= $item['qtd'] ?>x</strong> <?= htmlspecialchars($item['nome']) ?></span>
-                    <span>R$ <?= number_format($subtotal, 2, ',', '.') ?></span>
-                </div>
-                <small style="color:#888;">Unit: R$ <?= number_format($item['preco'], 2, ',', '.') ?></small>
+            <div class="preview-item">
+              <div style="display:flex; justify-content:space-between;">
+                <span><strong><?= $item['qtd'] ?>x</strong> <?= htmlspecialchars($item['nome']) ?></span>
+                <span>R$ <?= number_format($subtotal, 2, ',', '.') ?></span>
               </div>
+              <small style="color:#888;">Unit: R$ <?= number_format($item['preco'], 2, ',', '.') ?></small>
+            </div>
           <?php endforeach; ?>
 
           <div class="preview-item" style="border-top: 2px solid #ddd; border-bottom: none; margin-top: 10px; padding-top: 15px;">
             <div style="display:flex; justify-content:space-between; font-size: 1.2em;">
-                <strong>TOTAL:</strong>
-                <strong style="color: var(--accent-dark);">R$ <?= number_format($total, 2, ',', '.') ?></strong>
+              <strong>TOTAL:</strong>
+              <strong style="color: var(--accent-dark);">R$ <?= number_format($total, 2, ',', '.') ?></strong>
             </div>
           </div>
         </div>
         <p style="font-size: 13px; color: #666; margin-top: 20px; line-height: 1.4;">
-            Ao clicar em "Enviar Pedido", você será redirecionado para o WhatsApp para confirmar os detalhes com nossa equipe.
+          Ao clicar em "Enviar Pedido", você será redirecionado para o WhatsApp para confirmar os detalhes com nossa equipe.
         </p>
       </div>
-  </div>
+    </div>
 
   <?php endif; ?>
 </section>
 
 <style>
-    @media (max-width: 768px) {
-        .checkout > div {
-            grid-template-columns: 1fr !important;
-        }
-        .form, .cart-preview {
-            width: 100%;
-        }
-        .cart-preview {
-            order: -1;
-        }
+  @media (max-width: 768px) {
+    .checkout>div {
+      grid-template-columns: 1fr !important;
     }
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+
+    .form,
+    .cart-preview {
+      width: 100%;
     }
-    .empty-state p {
-        font-size: 18px;
-        color: #666;
-        margin-bottom: 20px;
+
+    .cart-preview {
+      order: -1;
     }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+
+  .empty-state p {
+    font-size: 18px;
+    color: #666;
+    margin-bottom: 20px;
+  }
 </style>
 
 <?php include 'footer.php'; ?>

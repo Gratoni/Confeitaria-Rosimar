@@ -27,19 +27,18 @@ try {
   // Auto-initialize tables if 'produtos' table doesn't exist
   $checkTable = $conn->query("SHOW TABLES LIKE 'produtos'");
   if ($checkTable->num_rows === 0) {
-      $sqlFile = __DIR__ . '/database.sql';
-      if (file_exists($sqlFile)) {
-          $sqlContent = file_get_contents($sqlFile);
-          if ($conn->multi_query($sqlContent)) {
-              do {
-                  if ($result = $conn->store_result()) {
-                      $result->free();
-                  }
-              } while ($conn->more_results() && $conn->next_result());
+    $sqlFile = __DIR__ . '/database.sql';
+    if (file_exists($sqlFile)) {
+      $sqlContent = file_get_contents($sqlFile);
+      if ($conn->multi_query($sqlContent)) {
+        do {
+          if ($result = $conn->store_result()) {
+            $result->free();
           }
+        } while ($conn->more_results() && $conn->next_result());
       }
+    }
   }
-
 } catch (Exception $e) {
   http_response_code(500);
   echo "<h2>Erro ao conectar ao banco de dados</h2>";
