@@ -13,17 +13,21 @@ switch ($acao) {
         $id = (int)$_POST['id'];
         $nome = $_POST['nome'];
         $preco = (float)$_POST['preco'];
-        $quantidade = (int)($_POST['qtd'] ?? 1);
+        // Allow float for quantity (weight)
+        $quantidade = (float)($_POST['qtd'] ?? 1);
+        $unidade = $_POST['unidade'] ?? 'un';
 
         if (!isset($_SESSION['carrinho'][$id])) {
             $_SESSION['carrinho'][$id] = [
                 'nome' => $nome,
                 'preco' => $preco,
-                'qtd' => 0
+                'qtd' => 0,
+                'unidade' => $unidade
             ];
         }
         $_SESSION['carrinho'][$id]['qtd'] += $quantidade;
-        echo json_encode(['ok' => true, 'msg' => 'Adicionado com sucesso']);
+
+        echo json_encode(['ok' => true, 'msg' => 'Adicionado com sucesso', 'carrinho' => $_SESSION['carrinho']]);
         break;
 
     case 'remover':
