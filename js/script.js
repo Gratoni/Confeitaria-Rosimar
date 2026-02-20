@@ -1,9 +1,10 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
     const CARRINHO_URL = 'carrinho.php';
     const miniCartItems = document.getElementById('mini-cart-items');
     const miniCart = document.getElementById('mini-cart');
     const cartBadge = document.getElementById('cart-count');
     const toastContainer = document.getElementById('toast-container');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     // Modal Elements
     const modal = document.getElementById('product-modal');
@@ -33,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!toastContainer) return;
         const toast = document.createElement('div');
         toast.className = 'toast';
-        toast.innerHTML = `<span>✓</span> ${message}`;
+        toast.innerHTML = `<span>OK</span> ${message}`;
         toastContainer.appendChild(toast);
         setTimeout(() => toast.remove(), 3500);
     }
@@ -54,15 +55,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             let html = '';
-            Object.values(data).forEach(item => {
+            Object.entries(data).forEach(([id, item]) => {
                 count += 1;
-                const qtdDisplay = item.unidade === 'kg' ? parseFloat(item.qtd).toFixed(1) + 'kg' : parseInt(item.qtd);
+                const qtdNum = parseFloat(item.qtd);
+                const qtdDisplay = item.unidade === 'kg' ? qtdNum.toFixed(1) + 'kg' : parseInt(item.qtd, 10);
+                const step = item.unidade === 'kg' ? 0.5 : 1;
 
                 html += `
                     <div class="mini-item">
                         <div class="mini-item-info">
                             <span class="mini-item-name">${item.nome}</span>
                             <span class="mini-item-meta">${qtdDisplay}</span>
+                        </div>
+                        <div class="mini-item-actions">
+                            <button class="mini-qty-btn" data-id="${id}" data-unidade="${item.unidade}" data-qtd="${qtdNum}" data-delta="${-step}">−</button>
+                            <button class="mini-qty-btn" data-id="${id}" data-unidade="${item.unidade}" data-qtd="${qtdNum}" data-delta="${step}">+</button>
+                            <button class="mini-remove" data-id="${id}">Remover</button>
                         </div>
                     </div>`;
             });
@@ -82,10 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData();
         formData.append('acao', 'adicionar');
         formData.append('id', product.id);
-        formData.append('nome', product.nome);
-        formData.append('preco', product.preco);
         formData.append('qtd', qtd);
-        formData.append('unidade', product.unidade);
+        formData.append('csrf_token', csrfToken);
 
         try {
             const res = await fetch(CARRINHO_URL, {
@@ -93,10 +99,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: formData
             });
 
-            if (!res.ok) throw new Error('Network response was not ok');
-            const data = await res.json();
+            const text = await res.text();
+            let data = null;
+            try {
+                data = text ? JSON.parse(text) : null;
+            } catch (e) {
+                console.warn('Resposta não-JSON do carrinho:', text);
+            }
 
-            if (data.ok) {
+            if (!res.ok) {
+                alert('Erro: ' + (data?.msg || 'Erro no servidor.'));
+                return;
+            }
+
+            if (data && data.ok) {
+                showToast(`${product.nome} adicionado!`);
+                atualizarCarrinho();
+                if (miniCart) {
+                    miniCart.classList.add('active');
+                    setTimeout(() => miniCart.classList.remove('active'), 3000);
+                }
+            } else if (data === null) {
+                // Se a resposta veio sem JSON mas o servidor respondeu OK, assume sucesso e atualiza
                 showToast(`${product.nome} adicionado!`);
                 atualizarCarrinho();
                 if (miniCart) {
@@ -104,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => miniCart.classList.remove('active'), 3000);
                 }
             } else {
-                alert('Erro: ' + (data.msg || 'Erro desconhecido'));
+                alert('Erro: ' + ((data && data.msg) || 'Erro desconhecido'));
             }
         } catch (err) {
             console.error(err);
@@ -124,35 +148,35 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             modalContent.classList.remove('modal-mini');
             // Load image only if not mini
-            if(modalImg) {
+            if (modalImg) {
                 modalImg.src = '';
                 modalImg.src = product.imagem;
                 modalImg.onerror = function() { this.src = 'assets/placeholder.jpg'; };
             }
-            if(modalDesc) modalDesc.innerText = product.descricao;
+            if (modalDesc) modalDesc.innerText = product.descricao;
         }
 
-        if(modalTitle) modalTitle.innerText = product.nome;
+        if (modalTitle) modalTitle.innerText = product.nome;
 
         const priceFormatted = parseFloat(product.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        if(modalPrice) modalPrice.innerText = priceFormatted;
-        if(modalUnit) modalUnit.innerText = product.unidade === 'kg' ? '/ kg' : '';
+        if (modalPrice) modalPrice.innerText = priceFormatted;
+        if (modalUnit) modalUnit.innerText = product.unidade === 'kg' ? '/ kg' : '';
 
         // Reset inputs
         if (product.unidade === 'kg') {
-            if(quantityInput) {
+            if (quantityInput) {
                 quantityInput.value = "1.0";
                 quantityInput.step = "0.5";
                 quantityInput.min = "1.0";
             }
-            if(quantityLabel) quantityLabel.innerText = "Peso (kg):";
+            if (quantityLabel) quantityLabel.innerText = "Peso (kg):";
         } else {
-            if(quantityInput) {
+            if (quantityInput) {
                 quantityInput.value = "1";
                 quantityInput.step = "1";
                 quantityInput.min = "1";
             }
-            if(quantityLabel) quantityLabel.innerText = "Quantidade:";
+            if (quantityLabel) quantityLabel.innerText = "Quantidade:";
         }
 
         // Prevent layout shift
@@ -170,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.paddingRight = '';
             document.body.style.overflow = '';
             // Reset mini class after closing
-            if(modalContent) modalContent.classList.remove('modal-mini');
+            if (modalContent) modalContent.classList.remove('modal-mini');
         }, 300);
 
         currentProduct = null;
@@ -182,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const addBtn = e.target.closest('.btn-icon');
         if (addBtn) {
             e.preventDefault();
-            e.stopPropagation(); // Prevent bubbling to view-product
+            e.stopPropagation();
 
             const card = addBtn.closest('.view-product');
             const product = {
@@ -190,15 +214,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 nome: card.dataset.nome,
                 preco: card.dataset.preco,
                 unidade: card.dataset.unidade,
-                imagem: card.dataset.imagem, // Needed if we open mini modal
+                imagem: card.dataset.imagem,
                 descricao: card.dataset.descricao
             };
 
             if (product.unidade === 'kg') {
-                // Open Mini Modal for Weight
                 openModal(product, true);
             } else {
-                // Direct Add for Unit
                 addToCartDirect(product, 1);
             }
             return;
@@ -216,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 descricao: viewBtn.dataset.descricao,
                 unidade: viewBtn.dataset.unidade
             };
-            openModal(product, false); // Full modal
+            openModal(product, false);
         }
 
         // 3. Close Modal
@@ -256,24 +278,39 @@ document.addEventListener('DOMContentLoaded', () => {
             addToCartBtn.disabled = true;
 
             try {
-                // Re-use logic (could refactor, but kept inline for modal specificity)
                 const formData = new FormData();
                 formData.append('acao', 'adicionar');
                 formData.append('id', currentProduct.id);
-                formData.append('nome', currentProduct.nome);
-                formData.append('preco', currentProduct.preco);
                 formData.append('qtd', qtd);
-                formData.append('unidade', currentProduct.unidade);
+                formData.append('csrf_token', csrfToken);
 
                 const res = await fetch(CARRINHO_URL, {
                     method: 'POST',
                     body: formData
                 });
 
-                if (!res.ok) throw new Error('Network response was not ok');
-                const data = await res.json();
+                const text = await res.text();
+                let data = null;
+                try {
+                    data = text ? JSON.parse(text) : null;
+                } catch (e) {
+                    console.warn('Resposta não-JSON do carrinho:', text);
+                }
 
-                if (data.ok) {
+                if (!res.ok) {
+                    alert('Erro: ' + (data?.msg || 'Erro no servidor.'));
+                    return;
+                }
+
+                if (data && data.ok) {
+                    closeModal();
+                    showToast(`${currentProduct.nome} adicionado!`);
+                    atualizarCarrinho();
+                    if (miniCart) {
+                        miniCart.classList.add('active');
+                        setTimeout(() => miniCart.classList.remove('active'), 3000);
+                    }
+                } else if (data === null) {
                     closeModal();
                     showToast(`${currentProduct.nome} adicionado!`);
                     atualizarCarrinho();
@@ -282,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         setTimeout(() => miniCart.classList.remove('active'), 3000);
                     }
                 } else {
-                    alert('Erro: ' + (data.msg || 'Erro desconhecido'));
+                    alert('Erro: ' + ((data && data.msg) || 'Erro desconhecido'));
                 }
             } catch (err) {
                 console.error(err);
@@ -298,24 +335,100 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearCartBtn = document.getElementById('clear-cart');
     if (clearCartBtn) {
         clearCartBtn.addEventListener('click', async () => {
-            if(confirm("Deseja realmente limpar o carrinho?")) {
-                await fetch(CARRINHO_URL + '?acao=limpar');
+            if (confirm("Deseja realmente limpar o carrinho?")) {
+                const formData = new FormData();
+                formData.append('acao', 'limpar');
+                formData.append('csrf_token', csrfToken);
+                await fetch(CARRINHO_URL, {
+                    method: 'POST',
+                    body: formData
+                });
                 atualizarCarrinho();
             }
         });
     }
 
-    // Toggle Mobile Cart
+    // Toggle Cart (all sizes)
     const cartLink = document.querySelector('.cart-link');
-    if(cartLink && miniCart) {
+    if (cartLink && miniCart) {
         cartLink.addEventListener('click', (e) => {
-            if(window.innerWidth <= 900) {
-                e.preventDefault();
-                miniCart.classList.toggle('active');
-            }
+            e.preventDefault();
+            miniCart.classList.toggle('active');
         });
     }
 
     // Init
     atualizarCarrinho();
+
+    // Checkout phone mask
+    const checkoutPhone = document.querySelector('form#form-order input[name="telefone"]');
+    if (checkoutPhone) {
+        checkoutPhone.addEventListener('input', () => {
+            let v = checkoutPhone.value.replace(/\D/g, '').slice(0, 11);
+            if (v.length <= 2) {
+                checkoutPhone.value = v;
+                return;
+            }
+            if (v.length <= 7) {
+                checkoutPhone.value = `(${v.slice(0, 2)}) ${v.slice(2)}`;
+                return;
+            }
+            checkoutPhone.value = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
+        });
+    }
+
+    // Mini-cart actions
+    if (miniCartItems) {
+        miniCartItems.addEventListener('click', async (e) => {
+            const removeBtn = e.target.closest('.mini-remove');
+            const updateBtn = e.target.closest('.mini-qty-btn');
+
+            if (removeBtn) {
+                const id = removeBtn.dataset.id;
+                const formData = new FormData();
+                formData.append('acao', 'remover');
+                formData.append('id', id);
+                formData.append('csrf_token', csrfToken);
+                await fetch(CARRINHO_URL, { method: 'POST', body: formData });
+                atualizarCarrinho();
+                return;
+            }
+
+            if (updateBtn) {
+                const id = updateBtn.dataset.id;
+                const unidade = updateBtn.dataset.unidade;
+                const atual = parseFloat(updateBtn.dataset.qtd);
+                const delta = parseFloat(updateBtn.dataset.delta);
+                let novo = atual + delta;
+
+                if (unidade !== 'kg') {
+                    novo = Math.max(1, Math.round(novo));
+                } else {
+                    novo = Math.max(0.5, novo);
+                }
+
+                const formData = new FormData();
+                formData.append('acao', 'atualizar');
+                formData.append('id', id);
+                formData.append('qtd', novo);
+                formData.append('csrf_token', csrfToken);
+                await fetch(CARRINHO_URL, { method: 'POST', body: formData });
+                atualizarCarrinho();
+            }
+        });
+    }
+
+    // Checkout clear cart
+    const clearCheckoutBtn = document.getElementById('clear-cart-checkout');
+    if (clearCheckoutBtn) {
+        clearCheckoutBtn.addEventListener('click', async () => {
+            if (confirm("Deseja realmente limpar o carrinho?")) {
+                const formData = new FormData();
+                formData.append('acao', 'limpar');
+                formData.append('csrf_token', csrfToken);
+                await fetch(CARRINHO_URL, { method: 'POST', body: formData });
+                window.location.reload();
+            }
+        });
+    }
 });

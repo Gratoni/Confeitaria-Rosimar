@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 session_start();
 $title = "Confeitaria Rosimar - Início";
@@ -30,18 +30,18 @@ $bolos = $result->fetch_all(MYSQLI_ASSOC);
       </div>
     <?php else: ?>
       <?php foreach ($bolos as $b):
-          $isKg = ($b['unidade'] === 'kg');
-          $priceDisplay = 'R$ ' . number_format($b['preco'], 2, ',', '.') . ($isKg ? ' <small>/ kg</small>' : '');
+        $isKg = ($b['unidade'] === 'kg');
+        $priceDisplay = 'R$ ' . number_format($b['preco'], 2, ',', '.') . ($isKg ? ' <small>/ kg</small>' : '');
       ?>
         <article class="bolo-card view-product"
-            data-id="<?= $b['id'] ?>"
-            data-nome="<?= htmlspecialchars($b['nome']) ?>"
-            data-descricao="<?= htmlspecialchars($b['descricao']) ?>"
-            data-preco="<?= $b['preco'] ?>"
-            data-imagem="<?= htmlspecialchars($b['imagem']) ?>"
-            data-unidade="<?= $b['unidade'] ?>"
-            role="button"
-            tabindex="0">
+          data-id="<?= $b['id'] ?>"
+          data-nome="<?= htmlspecialchars($b['nome']) ?>"
+          data-descricao="<?= htmlspecialchars($b['descricao']) ?>"
+          data-preco="<?= $b['preco'] ?>"
+          data-imagem="<?= htmlspecialchars($b['imagem']) ?>"
+          data-unidade="<?= $b['unidade'] ?>"
+          role="button"
+          tabindex="0">
           <figure class="thumb">
             <img src="<?= htmlspecialchars($b['imagem']) ?>" alt="<?= htmlspecialchars($b['nome']) ?>" onerror="this.src='assets/placeholder.jpg'; this.onerror=null;">
             <div class="overlay"><span class="btn-sm">Ver Detalhes</span></div>
@@ -52,7 +52,10 @@ $bolos = $result->fetch_all(MYSQLI_ASSOC);
             <div class="actions">
               <div class="price"><?= $priceDisplay ?></div>
               <button class="btn-icon" aria-label="Adicionar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
               </button>
             </div>
           </div>
@@ -64,33 +67,33 @@ $bolos = $result->fetch_all(MYSQLI_ASSOC);
 
 <!-- Product Modal -->
 <div class="modal-backdrop" id="product-modal">
-    <div class="modal-content">
-        <button class="modal-close">&times;</button>
-        <div class="modal-body">
-            <div class="modal-image">
-                <img id="modal-img" src="" alt="Produto">
-            </div>
-            <div class="modal-details">
-                <h3 id="modal-title">Nome do Bolo</h3>
-                <p id="modal-desc">Descrição do bolo...</p>
-                <div class="modal-price-tag">
-                    <span id="modal-price">R$ 0,00</span>
-                    <span id="modal-unit"></span>
-                </div>
-
-                <div class="quantity-control">
-                    <label id="quantity-label">Quantidade:</label>
-                    <div class="qty-group">
-                        <button type="button" id="qty-minus">−</button>
-                        <input type="number" id="modal-quantity" value="1" min="1" step="1" readonly>
-                        <button type="button" id="qty-plus">+</button>
-                    </div>
-                </div>
-
-                <button id="modal-add-btn" class="btn btn-full">Adicionar ao Carrinho</button>
-            </div>
+  <div class="modal-content">
+    <button class="modal-close">&times;</button>
+    <div class="modal-body">
+      <div class="modal-image">
+        <img id="modal-img" src="" alt="Produto">
+      </div>
+      <div class="modal-details">
+        <h3 id="modal-title">Nome do Bolo</h3>
+        <p id="modal-desc">Descrição do bolo...</p>
+        <div class="modal-price-tag">
+          <span id="modal-price">R$ 0,00</span>
+          <span id="modal-unit"></span>
         </div>
+
+        <div class="quantity-control">
+          <label id="quantity-label">Quantidade:</label>
+          <div class="qty-group">
+            <button type="button" id="qty-minus">−</button>
+            <input type="number" id="modal-quantity" value="1" min="1" step="1" readonly>
+            <button type="button" id="qty-plus">+</button>
+          </div>
+        </div>
+
+        <button id="modal-add-btn" class="btn btn-full">Adicionar ao Carrinho</button>
+      </div>
     </div>
+  </div>
 </div>
 
 <!-- Mini Cart -->
