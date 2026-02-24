@@ -26,9 +26,11 @@ CREATE TABLE IF NOT EXISTS pedido_itens (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO produtos (nome, descricao, preco, imagem, unidade) VALUES
-('Bolo de Morango', 'Pão de ló fofinho, recheio de creme e morangos frescos.', 65.00, 'assets/bolo-morango.jpg', 'kg'),
-('Bolo de Chocolate', 'Massa de chocolate 50% cacau com recheio de ganache.', 70.00, 'assets/bolo-chocolate.jpg', 'kg'),
-('Bolo Red Velvet', 'O clássico bolo vermelho com recheio de cream cheese.', 90.00, 'assets/bolo-redvelvet.jpg', 'kg'),
-('Bolo de Cenoura', 'Cobertura de brigadeiro cremoso e massa caseira.', 45.00, 'assets/bolo-cenoura.jpg', 'un'),
-('Bolo de Nozes', 'Recheio de doce de leite com nozes crocantes.', 75.00, 'assets/bolo-nozes.jpg', 'kg'),
-('Bolo de Limão', 'Massa leve de limão com cobertura de mousse.', 55.00, 'assets/bolo-limao.jpg', 'un');
+('Bolo de Chocolate Trufado', 'Massa de chocolate 50% cacau, recheio cremoso e cobertura de ganache.', 78.00, 'assets/bolos/chocolate.jpg', 'kg'),
+('Bolo de Morango com Nata', 'Pão de ló leve, recheio de nata e morangos frescos selecionados.', 82.00, 'assets/bolos/morango.jpg', 'kg'),
+('Bolo de Ninho', 'Massa branca amanteigada com recheio de leite ninho e toque de baunilha.', 76.00, 'assets/bolos/ninho.jpg', 'kg'),
+('Bolo de Limão', 'Cobertura cítrica e massa úmida para um sabor equilibrado e refrescante.', 48.00, 'assets/bolos/limao.jpg', 'un'),
+('Bolo de Cenoura com Brigadeiro', 'Clássico caseiro com cobertura de brigadeiro cremoso.', 45.00, 'assets/bolos/cenoura.jpg', 'un'),
+('Bolo de Fubá Caseiro', 'Receita tradicional de interior, macia e perfeita para café da tarde.', 36.00, 'assets/bolos/fuba.jpg', 'un'),
+('Bolo de Milho Cremoso', 'Massa de milho verde com textura cremosa e sabor de fazenda.', 39.00, 'assets/bolos/milho.jpg', 'un'),
+('Bolo de Banana com Canela', 'Banana caramelizada, especiarias e massa extremamente fofinha.', 42.00, 'assets/bolos/banana.jpg', 'un');
