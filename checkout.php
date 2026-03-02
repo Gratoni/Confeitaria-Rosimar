@@ -1,242 +1,223 @@
-﻿<?php
-// checkout.php
-$title = "Checkout - Confeitaria Rosimar";
+<?php
+
+$title = 'Checkout - Confeitaria Rosimar';
 include 'db/config.php';
-include 'header.php';
 require_once __DIR__ . '/lib/cart.php';
+require_once __DIR__ . '/lib/catalog.php';
 require_once __DIR__ . '/lib/validation.php';
+require_once __DIR__ . '/lib/whatsapp.php';
 require_once __DIR__ . '/lib/logger.php';
 
-$carrinho = $_SESSION['carrinho'] ?? [];
-$SEU_TELEFONE_WHATSAPP = "5511957077345";
-
-function getProdutoById(mysqli $conn, int $id): ?array
+function buildCartPreview(mysqli $conn, array $carrinho): array
 {
-  $stmt = $conn->prepare("SELECT id, nome, preco, unidade FROM produtos WHERE id = ?");
-  $stmt->bind_param("i", $id);
-  $stmt->execute();
-  $produto = $stmt->get_result()->fetch_assoc();
-  $stmt->close();
-  return $produto ?: null;
-}
-
-$previewItems = [];
-$totalPreview = 0;
-if ($carrinho) {
-  foreach ($carrinho as $id => $item) {
-    $produto = getProdutoById($conn, (int)$id);
-    $nome = $produto['nome'] ?? ($item['nome'] ?? 'Produto');
-    $precoUnit = (float)($produto['preco'] ?? $item['preco'] ?? 0);
-    $unidade = $produto['unidade'] ?? ($item['unidade'] ?? 'un');
-
-    $qtd = normalizeQuantity((float)($item['qtd'] ?? 1), $unidade);
-
-    $subtotal = calculateSubtotal($precoUnit, $qtd);
-    $totalPreview += $subtotal;
-
-    $qtdDisplay = formatQuantityDisplay($qtd, $unidade);
-
-    $previewItems[] = [
-      'nome' => $nome,
-      'qtdDisplay' => $qtdDisplay,
-      'precoUnit' => $precoUnit,
-      'subtotal' => $subtotal
-    ];
-  }
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $carrinho) {
-  if (!validateCsrfToken($_POST['csrf_token'] ?? null)) {
-    http_response_code(400);
-    $error = "Token CSRF inválido. Recarregue a página e tente novamente.";
-    logError('CSRF invalid on checkout', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
-  } else {
-
-  date_default_timezone_set('America/Sao_Paulo');
-
-  $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?? '';
-  $telefone = filter_input(INPUT_POST, 'telefone', FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?? '';
-  $obs = filter_input(INPUT_POST, 'obs', FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?? '';
-
-  $validationErrors = validateCheckoutInput($nome, $telefone, $obs);
-  if ($validationErrors) {
-    http_response_code(400);
-    $error = implode(' ', $validationErrors);
-    logError('Checkout validation failed', ['errors' => $validationErrors]);
-  } else {
-  $data_pedido = date('d/m/Y H:i:s');
-  $total = 0;
-
-  // --- 1. Geração da Mensagem ---
-  $mensagem = "*NOVO PEDIDO ROSIMAR* (Feito em: $data_pedido)\n";
-  $mensagem .= "---------------------------------------------------\n";
-  $mensagem .= "Cliente: " . $nome . "\n";
-  $mensagem .= "Contato: " . $telefone . "\n";
-  $mensagem .= "Obs: " . ($obs ?: "Nenhuma.") . "\n\n";
-  $mensagem .= "ITENS DO PEDIDO:\n";
+  $items = [];
+  $total = 0.0;
 
   foreach ($carrinho as $id => $item) {
-    $produto = getProdutoById($conn, (int)$id);
+    $produto = getCatalogProductById($conn, (int)$id);
     if (!$produto) {
       continue;
     }
 
     $precoUnit = (float)$produto['preco'];
-    $unidade = $produto['unidade'] ?? 'un';
-    $nomeProduto = $produto['nome'];
-
+    $unidade = normalizeUnit((string)($produto['unidade'] ?? 'un'));
     $qtd = normalizeQuantity((float)($item['qtd'] ?? 1), $unidade);
-
     $subtotal = calculateSubtotal($precoUnit, $qtd);
     $total += $subtotal;
 
-    $qtdDisplay = formatQuantityDisplay($qtd, $unidade);
-
-    $mensagem .= " • {$qtdDisplay} {$nomeProduto} (R$ " . number_format($precoUnit, 2, ',', '.') . ")\n";
+    $items[] = [
+      'id' => (int)$produto['id'],
+      'nome' => (string)$produto['nome'],
+      'qtd' => $qtd,
+      'qtdDisplay' => formatQuantityDisplay($qtd, $unidade),
+      'precoUnit' => $precoUnit,
+      'subtotal' => $subtotal,
+      'unidade' => $unidade,
+      'imagem' => (string)$produto['imagem'],
+    ];
   }
 
-  $mensagem .= "---------------------------------------------------\n";
-  $mensagem .= "TOTAL GERAL: R$ " . number_format($total, 2, ',', '.') . "\n\n";
-  $mensagem .= "Aguardamos sua confirmação para prosseguir!";
+  return [
+    'items' => $items,
+    'total' => $total,
+    'count' => count($items),
+  ];
+}
 
-  // --- 2. Salvar no Banco (Opcional, mas recomendado) ---
-  // Verifica tabelas antes de tentar inserir
-  $checkTable = $conn->query("SHOW TABLES LIKE 'pedidos'");
-  if ($checkTable->num_rows > 0) {
-    $stmt = $conn->prepare("INSERT INTO pedidos (nome_cliente, telefone, observacoes) VALUES (?, ?, ?)");
-    if ($stmt) {
-      $stmt->bind_param("sss", $nome, $telefone, $obs);
-      $stmt->execute();
-      $pedido_id = $stmt->insert_id;
-      $stmt->close();
+$carrinho = $_SESSION['carrinho'] ?? [];
+$preview = buildCartPreview($conn, is_array($carrinho) ? $carrinho : []);
+$previewItems = $preview['items'];
+$totalPreview = $preview['total'];
+$itemCount = $preview['count'];
 
-      $stmtItem = $conn->prepare("INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)");
-      if ($stmtItem) {
-        foreach ($carrinho as $id => $item) {
-          $produto = getProdutoById($conn, (int)$id);
-          if (!$produto) {
-            continue;
-          }
+$error = '';
+$formData = [
+  'nome' => '',
+  'telefone' => '',
+  'obs' => '',
+];
 
-          $precoUnit = (float)$produto['preco'];
-          $unidade = $produto['unidade'] ?? 'un';
-          $qtd = normalizeQuantity((float)($item['qtd'] ?? 1), $unidade);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  if (!validateCsrfToken($_POST['csrf_token'] ?? null)) {
+    http_response_code(400);
+    $error = 'Token CSRF invalido. Recarregue a pagina e tente novamente.';
+    logError('CSRF invalid on checkout', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
+  } else {
+    $honeypot = trim((string)($_POST['website'] ?? ''));
+    if ($honeypot !== '') {
+      http_response_code(400);
+      $error = 'Nao foi possivel processar o pedido.';
+      logError('Checkout bot suspicion', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
+    } else {
+      $formData['nome'] = sanitizeCheckoutText((string)($_POST['nome'] ?? ''), 80);
+      $formData['telefone'] = sanitizeCheckoutText((string)($_POST['telefone'] ?? ''), 30);
+      $formData['obs'] = sanitizeCheckoutText((string)($_POST['obs'] ?? ''), 500);
 
-          $stmtItem->bind_param("iidd", $pedido_id, $id, $qtd, $precoUnit);
-          $stmtItem->execute();
+      $validationErrors = validateCheckoutInput($formData['nome'], $formData['telefone'], $formData['obs']);
+      if ($validationErrors) {
+        http_response_code(400);
+        $error = implode(' ', $validationErrors);
+        logError('Checkout validation failed', ['errors' => $validationErrors]);
+      } elseif ($itemCount <= 0) {
+        http_response_code(400);
+        $error = 'Seu carrinho esta vazio. Volte ao cardapio para adicionar bolos.';
+      } else {
+        $orderDate = date('d/m/Y H:i');
+        $phoneDigits = sanitizePhone($formData['telefone']);
+
+        $messageItems = [];
+        foreach ($previewItems as $item) {
+          $messageItems[] = [
+            'qty' => $item['qtdDisplay'],
+            'name' => $item['nome'],
+            'unit_price' => $item['precoUnit'],
+          ];
         }
-        $stmtItem->close();
+
+        $mensagem = buildWhatsappOrderMessage([
+          'client_name' => $formData['nome'],
+          'client_phone' => $phoneDigits,
+          'notes' => $formData['obs'],
+          'order_date' => $orderDate,
+          'items' => $messageItems,
+          'total' => $totalPreview,
+        ]);
+        $whatsappUrl = buildWhatsappOrderUrl((string)STORE_WHATSAPP_NUMBER, $mensagem);
+
+        if (tableExists($conn, 'pedidos') && tableExists($conn, 'pedido_itens')) {
+          try {
+            $conn->begin_transaction();
+
+            $stmt = $conn->prepare('INSERT INTO pedidos (nome_cliente, telefone, observacoes) VALUES (?, ?, ?)');
+            $stmt->bind_param('sss', $formData['nome'], $phoneDigits, $formData['obs']);
+            $stmt->execute();
+            $pedidoId = (int)$stmt->insert_id;
+            $stmt->close();
+
+            $stmtItem = $conn->prepare('INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)');
+            foreach ($previewItems as $item) {
+              $produtoId = (int)$item['id'];
+              $qtd = (float)$item['qtd'];
+              $precoUnit = (float)$item['precoUnit'];
+              $stmtItem->bind_param('iidd', $pedidoId, $produtoId, $qtd, $precoUnit);
+              $stmtItem->execute();
+            }
+            $stmtItem->close();
+
+            $conn->commit();
+          } catch (Throwable $e) {
+            $conn->rollback();
+            logError('Checkout DB save failed', ['message' => $e->getMessage()]);
+          }
+        }
+
+        $_SESSION['carrinho'] = [];
+        header('Location: ' . $whatsappUrl, true, 303);
+        exit;
       }
     }
   }
-
-  $_SESSION['carrinho'] = [];
-
-  $mensagem_url = urlencode($mensagem);
-  $whatsapp_url = "https://wa.me/{$SEU_TELEFONE_WHATSAPP}?text={$mensagem_url}";
-
-  header("Location: " . $whatsapp_url);
-  exit;
-  }
-  }
 }
 
-if (empty($carrinho)) {
-  $error = "Seu carrinho está vazio. Adicione bolos para finalizar o pedido.";
+if ($itemCount <= 0 && $error === '') {
+  $error = 'Seu carrinho esta vazio. Adicione bolos para finalizar o pedido.';
 }
+
+include 'header.php';
 ?>
 
-<section class="wrap checkout">
+<section class="wrap checkout checkout-page">
+  <div class="checkout-steps" aria-label="Etapas do pedido">
+    <div class="step-item is-done">1. Cardapio</div>
+    <div class="step-item is-active">2. Dados e resumo</div>
+    <div class="step-item">3. Confirmacao no WhatsApp</div>
+  </div>
+
   <h1>Finalizar Pedido</h1>
 
-  <?php if (!empty($error)): ?>
+  <?php if ($error !== ''): ?>
     <div class="empty-state">
       <p><?= htmlspecialchars($error) ?></p>
-      <a href="index.php" class="btn">Voltar ao Cardápio</a>
+      <a href="index.php" class="btn">Voltar ao cardapio</a>
     </div>
   <?php else: ?>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;">
-      <form id="form-order" method="post" class="form">
-        <h3>Seus dados</h3>
-        <label>Nome completo
-          <input type="text" name="nome" required minlength="3" maxlength="80" placeholder="Ex: Maria Silva">
-        </label>
-        <label>Telefone / WhatsApp
-          <input type="tel" name="telefone" required inputmode="tel" maxlength="16" placeholder="(11) 9xxxx-xxxx">
-        </label>
+    <div class="checkout-layout">
+      <form id="form-order" method="post" class="form checkout-form">
+        <h3>Seus dados para contato</h3>
+
+        <label for="nome">Nome completo</label>
+        <input id="nome" type="text" name="nome" required minlength="3" maxlength="80" autocomplete="name" placeholder="Ex: Maria Silva" value="<?= htmlspecialchars($formData['nome']) ?>">
+
+        <label for="telefone">Telefone / WhatsApp</label>
+        <input id="telefone" type="tel" name="telefone" required inputmode="tel" autocomplete="tel" maxlength="16" placeholder="(11) 9XXXX-XXXX" value="<?= htmlspecialchars($formData['telefone']) ?>">
+
+        <label for="obs">Observacoes (data da festa, decoracao, tema)</label>
+        <textarea id="obs" name="obs" rows="4" maxlength="500" placeholder="Conte detalhes importantes para o pedido."><?= htmlspecialchars($formData['obs']) ?></textarea>
+
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
-        <label>Observações (data da festa, decoração, etc)
-          <textarea name="obs" rows="4" maxlength="500" placeholder="Escreva aqui detalhes importantes..."></textarea>
-        </label>
+        <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
 
         <div class="form-actions">
-          <a href="index.php" class="btn btn-outline" style="border:none; color: #666;">Cancelar</a>
-          <button type="submit" class="btn" style="width: 100%;">Enviar Pedido pelo WhatsApp</button>
+          <a href="index.php" class="btn btn-outline btn-neutral">Voltar</a>
+          <button type="submit" class="btn btn-full">Enviar pedido para WhatsApp</button>
         </div>
       </form>
 
-      <div class="cart-preview">
-        <h3>Resumo do Pedido</h3>
+      <aside class="cart-preview">
+        <h3>Resumo do pedido</h3>
+        <p class="preview-meta"><?= (int)$itemCount ?> <?= $itemCount === 1 ? 'item selecionado' : 'itens selecionados' ?></p>
+
         <div id="cart-preview-items">
           <?php foreach ($previewItems as $item): ?>
             <div class="preview-item">
-              <div style="display:flex; justify-content:space-between;">
+              <div class="preview-item-row">
                 <span><strong><?= htmlspecialchars($item['qtdDisplay']) ?></strong> <?= htmlspecialchars($item['nome']) ?></span>
                 <span>R$ <?= number_format($item['subtotal'], 2, ',', '.') ?></span>
               </div>
-              <small style="color:#888;">Unit: R$ <?= number_format($item['precoUnit'], 2, ',', '.') ?></small>
+              <small class="preview-item-unit">Unitario: R$ <?= number_format($item['precoUnit'], 2, ',', '.') ?></small>
             </div>
           <?php endforeach; ?>
 
-          <div class="preview-item" style="border-top: 2px solid #ddd; border-bottom: none; margin-top: 10px; padding-top: 15px;">
-            <div style="display:flex; justify-content:space-between; font-size: 1.2em;">
-              <strong>TOTAL:</strong>
-              <strong style="color: var(--accent-dark);">R$ <?= number_format($totalPreview, 2, ',', '.') ?></strong>
+          <div class="preview-item preview-total">
+            <div class="preview-total-row">
+              <strong>Total:</strong>
+              <strong class="preview-total-value">R$ <?= number_format($totalPreview, 2, ',', '.') ?></strong>
             </div>
           </div>
         </div>
-        <div style="margin-top: 14px; display:flex; justify-content:flex-end;">
+
+        <div class="checkout-side-actions">
           <button type="button" id="clear-cart-checkout" class="btn btn-outline">Limpar carrinho</button>
         </div>
-        <p style="font-size: 13px; color: #666; margin-top: 20px; line-height: 1.4;">
-          Ao clicar em "Enviar Pedido", você será redirecionado para o WhatsApp para confirmar os detalhes com nossa equipe.
+
+        <p class="checkout-note">
+          Depois de enviar, voce sera redirecionado para o WhatsApp da confeitaria para confirmar os detalhes.
         </p>
-      </div>
+      </aside>
     </div>
 
   <?php endif; ?>
 </section>
-
-<style>
-  @media (max-width: 768px) {
-    .checkout>div {
-      grid-template-columns: 1fr !important;
-    }
-
-    .form,
-    .cart-preview {
-      width: 100%;
-    }
-
-    .cart-preview {
-      order: -1;
-    }
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  }
-
-  .empty-state p {
-    font-size: 18px;
-    color: #666;
-    margin-bottom: 20px;
-  }
-</style>
 
 <?php include 'footer.php'; ?>

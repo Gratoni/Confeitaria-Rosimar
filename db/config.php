@@ -1,16 +1,55 @@
-﻿<?php
+<?php
 
+require_once __DIR__ . '/../lib/logger.php';
+require_once __DIR__ . '/../lib/security.php';
+
+$isHttps = isHttpsRequest();
 if (session_status() === PHP_SESSION_NONE) {
+  session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => $isHttps,
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
   session_start();
 }
+
 if (empty($_SESSION['csrf_token'])) {
   $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
-require_once __DIR__ . '/../lib/logger.php';
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "confeitaria_rosimar";
+
+date_default_timezone_set('America/Sao_Paulo');
+applySecurityHeaders();
+
+$host = getenv('DB_HOST') ?: 'localhost';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') ?: '';
+$db = getenv('DB_NAME') ?: 'confeitaria_rosimar';
+
+$appEnv = strtolower((string)(getenv('APP_ENV') ?: 'production'));
+$isDebug = in_array($appEnv, ['local', 'development', 'dev', 'test'], true);
+
+// Optional local analytics config file (do not commit real IDs).
+$analyticsConfig = __DIR__ . '/../config/analytics.php';
+if (is_file($analyticsConfig)) {
+  require_once $analyticsConfig;
+}
+
+if (!defined('GTM_CONTAINER_ID')) {
+  $gtmId = getenv('GTM_CONTAINER_ID');
+  define('GTM_CONTAINER_ID', is_string($gtmId) ? trim($gtmId) : '');
+}
+
+if (!defined('GA4_MEASUREMENT_ID')) {
+  $ga4Id = getenv('GA4_MEASUREMENT_ID');
+  define('GA4_MEASUREMENT_ID', is_string($ga4Id) ? trim($ga4Id) : '');
+}
+
+if (!defined('STORE_WHATSAPP_NUMBER')) {
+  $storePhone = getenv('STORE_WHATSAPP_NUMBER');
+  define('STORE_WHATSAPP_NUMBER', is_string($storePhone) && trim($storePhone) !== '' ? trim($storePhone) : '5511957077345');
+}
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
@@ -37,24 +76,22 @@ function validateCsrfToken(?string $token): bool
 
 try {
   $conn = new mysqli($host, $user, $pass);
-  $conn->set_charset("utf8mb4");
+  $conn->set_charset('utf8mb4');
 
-  // Check if database exists
-  $checkDb = $conn->query("SHOW DATABASES LIKE '" . $conn->real_escape_string($db) . "'");
+  $escapedDbName = $conn->real_escape_string($db);
+  $checkDb = $conn->query("SHOW DATABASES LIKE '{$escapedDbName}'");
   if ($checkDb->num_rows === 0) {
-    $sqlCreate = "CREATE DATABASE `" . $db . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
-    $conn->query($sqlCreate);
+    $conn->query("CREATE DATABASE `{$db}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
   }
 
   $conn->select_db($db);
-  $conn->set_charset("utf8mb4");
+  $conn->set_charset('utf8mb4');
 
-  // Auto-initialize tables if 'produtos' table doesn't exist
   if (!tableExists($conn, 'produtos')) {
     $sqlFile = __DIR__ . '/database.sql';
-    if (file_exists($sqlFile)) {
+    if (is_file($sqlFile)) {
       $sqlContent = file_get_contents($sqlFile);
-      if ($conn->multi_query($sqlContent)) {
+      if ($sqlContent !== false && $conn->multi_query($sqlContent)) {
         do {
           if ($result = $conn->store_result()) {
             $result->free();
@@ -64,30 +101,35 @@ try {
     }
   }
 
-  // Migration: Add 'unidade' column if it doesn't exist
   if (tableExists($conn, 'produtos')) {
     $checkCol = $conn->query("SHOW COLUMNS FROM produtos LIKE 'unidade'");
     if ($checkCol->num_rows === 0) {
       $conn->query("ALTER TABLE produtos ADD COLUMN unidade VARCHAR(10) DEFAULT 'un'");
-      // Update existing records based on price logic (Migration logic)
       $conn->query("UPDATE produtos SET unidade = 'kg' WHERE preco >= 65");
     }
   }
 
-  // Migration: Change 'quantidade' in 'pedido_itens' to DECIMAL if it is INT
   if (tableExists($conn, 'pedido_itens')) {
     $checkColQtd = $conn->query("SHOW COLUMNS FROM pedido_itens LIKE 'quantidade'");
     $row = $checkColQtd->fetch_assoc();
-    if ($row && strpos(strtolower($row['Type']), 'int') !== false) {
+    if ($row && strpos(strtolower((string)$row['Type']), 'int') !== false) {
       $conn->query("ALTER TABLE pedido_itens MODIFY COLUMN quantidade DECIMAL(10,3) NOT NULL");
     }
   }
-}
-catch (Exception $e) {
+
+  require_once __DIR__ . '/../lib/catalog.php';
+  ensureDefaultCatalogProducts($conn);
+} catch (Throwable $e) {
   http_response_code(500);
   logError('DB connection error', ['message' => $e->getMessage()]);
-  echo "<h2>Erro ao conectar ao banco de dados</h2>";
-  echo "<p>Verifique as configurações em <code>config.php</code> e se o MySQL está ativo.</p>";
-  echo "<pre>" . $e->getMessage() . "</pre>";
+
+  if ($isDebug) {
+    echo '<h2>Erro ao conectar ao banco de dados</h2>';
+    echo '<p>Verifique as configuracoes em <code>db/config.php</code> e se o MySQL esta ativo.</p>';
+    echo '<pre>' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</pre>';
+  } else {
+    echo '<h2>Nao foi possivel carregar a loja agora.</h2>';
+    echo '<p>Tente novamente em alguns minutos.</p>';
+  }
   exit;
 }
