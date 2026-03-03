@@ -8,6 +8,7 @@ require_once __DIR__ . '/lib/logger.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
+header('X-Robots-Tag: noindex, nofollow');
 
 if (!isset($_SESSION['carrinho']) || !is_array($_SESSION['carrinho'])) {
   $_SESSION['carrinho'] = [];
@@ -19,7 +20,7 @@ $requiresPost = ['adicionar', 'atualizar', 'remover', 'limpar'];
 
 function getCsrfFromRequest(): ?string
 {
-  $token = $_POST['csrf_token'] ?? $_GET['csrf_token'] ?? null;
+  $token = $_POST['csrf_token'] ?? null;
   if ($token) {
     return $token;
   }

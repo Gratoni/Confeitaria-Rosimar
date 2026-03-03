@@ -76,6 +76,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return toastContainer;
     }
 
+    function setupImageFallbacks() {
+        const images = document.querySelectorAll('img[data-fallback-src]');
+        images.forEach(image => {
+            if (!(image instanceof HTMLImageElement)) return;
+            image.addEventListener('error', () => {
+                const fallbackSrc = image.getAttribute('data-fallback-src');
+                if (!fallbackSrc || image.dataset.fallbackApplied === '1') return;
+                image.dataset.fallbackApplied = '1';
+                image.src = fallbackSrc;
+            });
+        });
+    }
+
     function trackEvent(eventName, payload = {}) {
         if (!eventName) return;
         window.dataLayer = window.dataLayer || [];
@@ -793,6 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    setupImageFallbacks();
     setMiniCartOpen(false);
     atualizarCarrinho();
 

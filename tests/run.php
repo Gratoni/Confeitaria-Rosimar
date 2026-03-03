@@ -40,3 +40,6 @@ require_once __DIR__ . '/validation_test.php';
 
 echo PHP_EOL . "Running integration cart tests..." . PHP_EOL;
 require_once __DIR__ . '/integration_cart_test.php';
+
+echo PHP_EOL . "Running privacy tests..." . PHP_EOL;
+require_once __DIR__ . '/privacy_test.php';

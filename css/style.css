@@ -1107,6 +1107,22 @@ main:focus {
     border-color: var(--primary);
 }
 
+.checkbox-field {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-top: 2px;
+    line-height: 1.35;
+    color: #5d483b;
+}
+
+.checkbox-field input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    accent-color: var(--primary);
+}
+
 .hp-field {
     position: absolute;
     left: -9999px;

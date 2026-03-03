@@ -2,9 +2,17 @@
 
 require_once __DIR__ . '/../lib/logger.php';
 require_once __DIR__ . '/../lib/security.php';
+require_once __DIR__ . '/../lib/privacy.php';
 
 $isHttps = isHttpsRequest();
 if (session_status() === PHP_SESSION_NONE) {
+  ini_set('session.use_strict_mode', '1');
+  ini_set('session.use_only_cookies', '1');
+  ini_set('session.cookie_httponly', '1');
+  ini_set('session.cookie_secure', $isHttps ? '1' : '0');
+  ini_set('session.cookie_samesite', 'Lax');
+
+  session_name('crsid');
   session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',
@@ -13,6 +21,17 @@ if (session_status() === PHP_SESSION_NONE) {
     'samesite' => 'Lax',
   ]);
   session_start();
+}
+
+if (empty($_SESSION['session_started_at'])) {
+  $_SESSION['session_started_at'] = time();
+}
+if (empty($_SESSION['session_regenerated_at'])) {
+  $_SESSION['session_regenerated_at'] = time();
+}
+if ((time() - (int)$_SESSION['session_regenerated_at']) > 1800) {
+  session_regenerate_id(true);
+  $_SESSION['session_regenerated_at'] = time();
 }
 
 if (empty($_SESSION['csrf_token'])) {
@@ -26,6 +45,12 @@ $host = getenv('DB_HOST') ?: 'localhost';
 $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') ?: '';
 $db = getenv('DB_NAME') ?: 'confeitaria_rosimar';
+if (preg_match('/^[A-Za-z0-9_]+$/', $db) !== 1) {
+  http_response_code(500);
+  logError('Invalid DB_NAME value');
+  echo '<h2>Configuracao invalida do banco de dados.</h2>';
+  exit;
+}
 
 $appEnv = strtolower((string)(getenv('APP_ENV') ?: 'production'));
 $isDebug = in_array($appEnv, ['local', 'development', 'dev', 'test'], true);
@@ -74,6 +99,36 @@ function validateCsrfToken(?string $token): bool
   return hash_equals($sessionToken, $token);
 }
 
+function ensurePedidosSecuritySchema(mysqli $conn): void
+{
+  if (!tableExists($conn, 'pedidos')) {
+    return;
+  }
+
+  $columns = [
+    'nome_cliente' => 'NOT NULL',
+    'telefone' => 'NOT NULL',
+    'observacoes' => 'NULL',
+  ];
+  foreach ($columns as $column => $nullability) {
+    $columnCheck = $conn->query("SHOW COLUMNS FROM pedidos LIKE '{$column}'");
+    $columnInfo = $columnCheck ? $columnCheck->fetch_assoc() : null;
+    if (!$columnInfo) {
+      continue;
+    }
+
+    $currentType = strtolower((string)($columnInfo['Type'] ?? ''));
+    if (!str_contains($currentType, 'text')) {
+      $conn->query("ALTER TABLE pedidos MODIFY COLUMN {$column} TEXT {$nullability}");
+    }
+  }
+
+  $consentCheck = $conn->query("SHOW COLUMNS FROM pedidos LIKE 'consentimento_lgpd'");
+  if ($consentCheck && $consentCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE pedidos ADD COLUMN consentimento_lgpd TINYINT(1) NOT NULL DEFAULT 0");
+  }
+}
+
 try {
   $conn = new mysqli($host, $user, $pass);
   $conn->set_charset('utf8mb4');
@@ -115,6 +170,12 @@ try {
     if ($row && strpos(strtolower((string)$row['Type']), 'int') !== false) {
       $conn->query("ALTER TABLE pedido_itens MODIFY COLUMN quantidade DECIMAL(10,3) NOT NULL");
     }
+  }
+
+  ensurePedidosSecuritySchema($conn);
+  if (!isDataProtectionEnabled() && empty($_SESSION['missing_data_key_logged'])) {
+    $_SESSION['missing_data_key_logged'] = true;
+    logError('APP_DATA_KEY ausente/invalida. Criptografia de dados pessoais indisponivel.');
   }
 
   require_once __DIR__ . '/../lib/catalog.php';

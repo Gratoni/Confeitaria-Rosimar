@@ -8,6 +8,10 @@ require_once __DIR__ . '/lib/validation.php';
 require_once __DIR__ . '/lib/whatsapp.php';
 require_once __DIR__ . '/lib/logger.php';
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('X-Robots-Tag: noindex, nofollow');
+
 function buildCartPreview(mysqli $conn, array $carrinho): array
 {
   $items = [];
@@ -44,6 +48,18 @@ function buildCartPreview(mysqli $conn, array $carrinho): array
   ];
 }
 
+function isCheckoutRateLimited(int $windowSeconds = 8): bool
+{
+  $now = time();
+  $lastSubmitAt = (int)($_SESSION['checkout_last_submit_at'] ?? 0);
+  if ($lastSubmitAt > 0 && ($now - $lastSubmitAt) < $windowSeconds) {
+    return true;
+  }
+
+  $_SESSION['checkout_last_submit_at'] = $now;
+  return false;
+}
+
 $carrinho = $_SESSION['carrinho'] ?? [];
 $preview = buildCartPreview($conn, is_array($carrinho) ? $carrinho : []);
 $previewItems = $preview['items'];
@@ -55,6 +71,7 @@ $formData = [
   'nome' => '',
   'telefone' => '',
   'obs' => '',
+  'lgpd' => false,
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -68,16 +85,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       http_response_code(400);
       $error = 'Nao foi possivel processar o pedido.';
       logError('Checkout bot suspicion', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
+    } elseif (isCheckoutRateLimited()) {
+      http_response_code(429);
+      $error = 'Aguarde alguns segundos antes de enviar novamente.';
     } else {
       $formData['nome'] = sanitizeCheckoutText((string)($_POST['nome'] ?? ''), 80);
       $formData['telefone'] = sanitizeCheckoutText((string)($_POST['telefone'] ?? ''), 30);
       $formData['obs'] = sanitizeCheckoutText((string)($_POST['obs'] ?? ''), 500);
+      $formData['lgpd'] = hasLgpdConsent($_POST['lgpd_consent'] ?? '');
 
       $validationErrors = validateCheckoutInput($formData['nome'], $formData['telefone'], $formData['obs']);
+      if (!$formData['lgpd']) {
+        $validationErrors[] = 'Para continuar, aceite o tratamento de dados conforme a LGPD.';
+      }
       if ($validationErrors) {
         http_response_code(400);
         $error = implode(' ', $validationErrors);
-        logError('Checkout validation failed', ['errors' => $validationErrors]);
+        logError('Checkout validation failed', ['error_count' => count($validationErrors)]);
       } elseif ($itemCount <= 0) {
         http_response_code(400);
         $error = 'Seu carrinho esta vazio. Volte ao cardapio para adicionar bolos.';
@@ -106,10 +130,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (tableExists($conn, 'pedidos') && tableExists($conn, 'pedido_itens')) {
           try {
+            if (!isDataProtectionEnabled()) {
+              throw new RuntimeException('APP_DATA_KEY ausente/invalida');
+            }
+
             $conn->begin_transaction();
 
-            $stmt = $conn->prepare('INSERT INTO pedidos (nome_cliente, telefone, observacoes) VALUES (?, ?, ?)');
-            $stmt->bind_param('sss', $formData['nome'], $phoneDigits, $formData['obs']);
+            $encryptedName = encryptSensitiveData($formData['nome']);
+            $encryptedPhone = encryptSensitiveData($phoneDigits);
+            $encryptedNotes = encryptSensitiveData($formData['obs']);
+            $lgpdConsent = 1;
+
+            $stmt = $conn->prepare('INSERT INTO pedidos (nome_cliente, telefone, observacoes, consentimento_lgpd) VALUES (?, ?, ?, ?)');
+            $stmt->bind_param('sssi', $encryptedName, $encryptedPhone, $encryptedNotes, $lgpdConsent);
             $stmt->execute();
             $pedidoId = (int)$stmt->insert_id;
             $stmt->close();
@@ -174,6 +207,17 @@ include 'header.php';
 
         <label for="obs">Observacoes (data da festa, decoracao, tema)</label>
         <textarea id="obs" name="obs" rows="4" maxlength="500" placeholder="Conte detalhes importantes para o pedido."><?= htmlspecialchars($formData['obs']) ?></textarea>
+
+        <label class="checkbox-field" for="lgpd-consent">
+          <input
+            id="lgpd-consent"
+            type="checkbox"
+            name="lgpd_consent"
+            value="1"
+            required
+            <?= $formData['lgpd'] ? 'checked' : '' ?>>
+          <span>Autorizo o uso dos meus dados para processar este pedido, conforme a LGPD.</span>
+        </label>
 
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
         <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">

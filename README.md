@@ -27,10 +27,30 @@ Entregar um fluxo simples e seguro:
 
 - Token CSRF nas operacoes sensiveis de carrinho e checkout.
 - Cookies de sessao com `HttpOnly` e `SameSite=Lax`.
-- Headers de hardening (`CSP`, `X-Frame-Options`, `X-Content-Type-Options`, etc.).
+- Rotacao de sessao e modo estrito para reduzir risco de fixation/hijacking.
+- Headers de hardening (`CSP` com nonce, `X-Frame-Options`, `X-Content-Type-Options`, etc.).
 - Validacao de entrada no servidor para nome, telefone, observacoes e quantidade.
+- Consentimento LGPD obrigatorio no checkout.
+- Criptografia de dados pessoais em repouso (nome, telefone e observacoes), via `APP_DATA_KEY`.
 - Limites de quantidade por item e limite de itens distintos no carrinho.
 - Sanitizacao de caminhos de imagem do catalogo para evitar referencias indevidas.
+- Logs com redacao de dados sensiveis e anonimização de IP.
+
+### Chave de criptografia (obrigatoria para pedidos no banco)
+
+Defina `APP_DATA_KEY` com 32 bytes (hex/base64).
+
+Exemplo em base64 (PowerShell):
+
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
+```
+
+Depois configure no ambiente:
+
+```powershell
+$env:APP_DATA_KEY='base64:SUA_CHAVE_AQUI'
+```
 
 ## Catalogo e imagens
 

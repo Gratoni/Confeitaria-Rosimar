@@ -19,6 +19,8 @@ $currentFile = basename($requestPath);
 $isHome = ($currentFile === '' || $currentFile === 'index.php');
 $logoPath = __DIR__ . '/assets/logo.png';
 $hasLogo = is_file($logoPath);
+$cspNonce = function_exists('getCspNonce') ? getCspNonce() : '';
+$nonceAttr = $cspNonce !== '' ? ' nonce="' . htmlspecialchars($cspNonce, ENT_QUOTES, 'UTF-8') . '"' : '';
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -36,7 +38,7 @@ $hasLogo = is_file($logoPath);
   <link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <?php if ($hasGtm): ?>
-    <script>
+    <script<?= $nonceAttr ?>>
       window.dataLayer = window.dataLayer || [];
       (function(w, d, s, l, i) {
         w[l] = w[l] || [];
@@ -53,12 +55,12 @@ $hasLogo = is_file($logoPath);
       })(window, document, 'script', 'dataLayer', '<?= htmlspecialchars($gtmContainerId, ENT_QUOTES, 'UTF-8') ?>');
     </script>
   <?php else: ?>
-    <script>
+    <script<?= $nonceAttr ?>>
       window.dataLayer = window.dataLayer || [];
     </script>
     <?php if ($hasGa4): ?>
       <script async src="https://www.googletagmanager.com/gtag/js?id=<?= htmlspecialchars($ga4MeasurementId, ENT_QUOTES, 'UTF-8') ?>"></script>
-      <script>
+      <script<?= $nonceAttr ?>>
         function gtag() {
           dataLayer.push(arguments);
         }

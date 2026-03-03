@@ -8,6 +8,7 @@ function sanitizePhone(string $telefone): string
 function sanitizeCheckoutText(string $value, int $maxLength): string
 {
   $value = trim($value);
+  $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/u', ' ', $value) ?? '';
   $value = preg_replace('/\s+/', ' ', $value) ?? '';
 
   if ($maxLength > 0 && mb_strlen($value) > $maxLength) {
@@ -15,6 +16,16 @@ function sanitizeCheckoutText(string $value, int $maxLength): string
   }
 
   return $value;
+}
+
+function hasLgpdConsent(mixed $value): bool
+{
+  if (is_bool($value)) {
+    return $value;
+  }
+
+  $normalized = mb_strtolower(trim((string)$value), 'UTF-8');
+  return in_array($normalized, ['1', 'true', 'on', 'sim', 'yes'], true);
 }
 
 function validateCheckoutInput(string $nome, string $telefone, string $obs = ''): array

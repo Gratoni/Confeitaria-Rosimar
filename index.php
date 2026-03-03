@@ -55,7 +55,7 @@ $caseiros = array_values(array_filter($bolos, static function ($bolo) {
     <div class="caseiro-grid">
       <?php foreach (array_slice($caseiros, 0, 4) as $bolo): ?>
         <article class="caseiro-card">
-          <img src="<?= htmlspecialchars($bolo['imagem']) ?>" alt="<?= htmlspecialchars($bolo['nome']) ?>" loading="lazy" decoding="async" onerror="this.src='assets/placeholder.jpg'; this.onerror=null;">
+          <img src="<?= htmlspecialchars($bolo['imagem']) ?>" alt="<?= htmlspecialchars($bolo['nome']) ?>" loading="lazy" decoding="async" data-fallback-src="assets/placeholder.jpg">
           <div>
             <h3><?= htmlspecialchars($bolo['nome']) ?></h3>
             <p><?= htmlspecialchars($bolo['descricao']) ?></p>
@@ -135,7 +135,7 @@ $caseiros = array_values(array_filter($bolos, static function ($bolo) {
           aria-label="Ver detalhes de <?= htmlspecialchars((string)$b['nome']) ?>"
           tabindex="0">
           <figure class="thumb">
-            <img src="<?= htmlspecialchars((string)$b['imagem']) ?>" alt="<?= htmlspecialchars((string)$b['nome']) ?>" loading="lazy" decoding="async" onerror="this.src='assets/placeholder.jpg'; this.onerror=null;">
+            <img src="<?= htmlspecialchars((string)$b['imagem']) ?>" alt="<?= htmlspecialchars((string)$b['nome']) ?>" loading="lazy" decoding="async" data-fallback-src="assets/placeholder.jpg">
             <div class="overlay"><span class="btn-sm">Ver detalhes</span></div>
           </figure>
 

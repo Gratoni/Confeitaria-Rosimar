@@ -9,9 +9,10 @@ CREATE TABLE IF NOT EXISTS produtos (
 
 CREATE TABLE IF NOT EXISTS pedidos (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    nome_cliente VARCHAR(255) NOT NULL,
-    telefone VARCHAR(50) NOT NULL,
+    nome_cliente TEXT NOT NULL,
+    telefone TEXT NOT NULL,
     observacoes TEXT,
+    consentimento_lgpd TINYINT(1) NOT NULL DEFAULT 0,
     data_pedido DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
